@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"math/rand/v2"
 	"os"
@@ -15,21 +16,12 @@ import (
 	"github.com/google/uuid"
 )
 
-func SendOnboardingEmail(ctx context.Context, args ...interface{}) error {
-	time.Sleep(time.Millisecond * time.Duration(rand.IntN(1000)))
-	help := worker.HelperFor(ctx)
-	log.Printf("[SendOnboardingEmail] Working on job %s\n", help.Jid())
-	if rand.IntN(100) > 90 {
-		return errors.New("helllo")
-	}
-	return nil
-}
-
 var (
-	queues = []string{"send-onboarding-email"}
+	queues = []string{"send-onboarding-email", "generate-invoice"}
 
 	jobHandlers = map[string]worker.Perform{
-		"send-onboarding-email": SendOnboardingEmail,
+		"send-onboarding-email": makeHandler("SendOnboardingEmail"),
+		"generate-invoice":      makeHandler("GenerateInvoice"),
 	}
 )
 
@@ -63,10 +55,27 @@ func main() {
 	mgr.Terminate(true)
 }
 
+func makeHandler(jobname string) worker.Perform {
+	return func(ctx context.Context, args ...interface{}) error {
+		help := worker.HelperFor(ctx)
+
+		// work work work
+		log.Printf("[%s] Working on job %s\n", jobname, help.Jid())
+		time.Sleep(time.Millisecond * time.Duration(rand.IntN(1000)))
+
+		// error with random rate
+		if rand.IntN(100) > 90 {
+			return errors.New(fmt.Sprintf("mock error: failed working on %s", help.Jid()))
+		}
+
+		return nil
+	}
+}
+
 func newJobManager(queues []string) *worker.Manager {
 	mgr := worker.NewManager()
 	// use up to N goroutines to execute jobs
-	mgr.Concurrency = 20
+	mgr.Concurrency = 100
 	// wait up to 25 seconds to let jobs in progress finish
 	mgr.ShutdownTimeout = 25 * time.Second
 	// pull jobs from these queues, in this order of precedence
@@ -82,32 +91,34 @@ func simulateMockJobs(ctx context.Context, queues []string) {
 	}
 
 	for {
+		time.Sleep(time.Millisecond * time.Duration(rand.IntN(500)))
+
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
 
-		time.Sleep(time.Millisecond * time.Duration(rand.IntN(500)))
+		go func() {
+			jobID := uuid.NewString()
+			queue := queues[rand.IntN(len(queues)-1)]
 
-		jobID := uuid.NewString()
-		queue := queues[rand.IntN(10)%len(queues)]
+			log.Printf("[simulateMockJobs] pushing job. queue=%s jobID=%v\n", queue, jobID)
+			err := faktory.Push(&client.Job{
+				Retry:   new(int),
+				Failure: &client.Failure{},
+				Jid:     jobID,
+				Queue:   queue,
+				Type:    queue,
+				Args: []any{
+					jobID,
+				},
+			})
 
-		log.Printf("[simulateMockJobs] pushing job. jobID=%v\n", jobID)
-		err := faktory.Push(&client.Job{
-			Retry:   new(int),
-			Failure: &client.Failure{},
-			Jid:     jobID,
-			Queue:   queue,
-			Type:    queue,
-			Args: []any{
-				jobID,
-			},
-		})
-
-		if err != nil {
-			log.Printf("[simulateMockJobs] err pushing job. jobID=%v, err=%v\n", jobID, err)
-		}
+			if err != nil {
+				log.Printf("[simulateMockJobs] err pushing job. jobID=%v, err=%v\n", jobID, err)
+			}
+		}()
 	}
 
 }
