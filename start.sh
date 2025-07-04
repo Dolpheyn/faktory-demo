@@ -19,5 +19,7 @@ else
   sleep 1
 fi
 
+
+
 echo "Running Go app..."
-go run main.go
+FAKTORY_URL=tcp://:some_password@127.0.0.1:7419 go run main.go

@@ -7,4 +7,5 @@ toolchain go1.24.4
 require (
 	github.com/contribsys/faktory v1.9.2 // indirect
 	github.com/contribsys/faktory_worker_go v1.7.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 )
