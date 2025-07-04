@@ -1,5 +1,7 @@
 start with `./scripts/start.sh`
 
+faktory dashboard will be hosted at http://localhost:7420/ shortly after start
+
 e.g. logs
 ```
 ╰─❯ ./scripts/start.sh

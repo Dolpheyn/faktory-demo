@@ -90,6 +90,8 @@ func simulateMockJobs(ctx context.Context, queues []string) {
 		log.Printf("[simulateMockJobs] failed to connect to faktory: %v\n", err)
 	}
 
+	retryCount := 3
+
 	for {
 		time.Sleep(time.Millisecond * time.Duration(rand.IntN(500)))
 
@@ -105,7 +107,7 @@ func simulateMockJobs(ctx context.Context, queues []string) {
 
 			log.Printf("[simulateMockJobs] pushing job. queue=%s jobID=%v\n", queue, jobID)
 			err := faktory.Push(&client.Job{
-				Retry:   new(int),
+				Retry:   &retryCount,
 				Failure: &client.Failure{},
 				Jid:     jobID,
 				Queue:   queue,
